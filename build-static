@@ -5,7 +5,7 @@ ROOTPATH=`pwd -P`
 popd > /dev/null
 
 NAME=setup-etcd-peers-environment
-VERSION=0.1.0
+VERSION=0.1.1
 PREFIX=${NAME}-${VERSION}
 
 mkdir -p $ROOTPATH/bin

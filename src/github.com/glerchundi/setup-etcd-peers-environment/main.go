@@ -20,27 +20,23 @@ import (
 	"github.com/glerchundi/setup-etcd-peers-environment/util"
 )
 
-var (
-	defaultEnvironmentFilePath = "/etc/etcd-peers-environment"
-	environmentFilePath string
-)
-
 func main() {
 	app := cli.NewApp()
 	app.Name = "setup-etcd-peers-environment"
+	app.Version = "0.1.1"
 	app.Usage = "manage etcd cluster peers based on AWS autoscaling groups"
-	app.Action = action
+	app.Action = mainAction
 	app.Flags = []cli.Flag {
 		cli.StringFlag{
-			Name: "out",
+			Name: "out, o",
 			Value: "/etc/sysconfig/etcd-peers",
 			Usage: "etcd peers environment config file destination",
 		},
 	}
-	app.Run(os.Args)
+	app.RunAndExitOnError()
 }
 
-func action(c *cli.Context) {
+func mainAction(c *cli.Context) {
 	environmentFilePath := c.GlobalString("out")
 	if _, err := os.Stat(environmentFilePath); err == nil {
 		log.Printf("etcd-peers file %s already created, exiting.", environmentFilePath)
@@ -58,7 +54,11 @@ func action(c *cli.Context) {
 		log.Fatal(err)
 	}
 
-	os.Rename(tempFilePath, environmentFilePath)
+	if err := os.Rename(tempFilePath, environmentFilePath); err != nil {
+		log.Fatal(err)
+	}
+
+	os.Exit(0)
 }
 
 func writeEnvironment(w io.Writer) error {
@@ -128,12 +128,12 @@ func writeEnvironment(w io.Writer) error {
 		for _, etcdMember := range etcdMembers {
 			peerURL, err := url.Parse(etcdMember.PeerURLs[0])
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 
 			peerHost, _, err := net.SplitHostPort(peerURL.Host)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 
 			if _, ok := clusterMembersByIp[peerHost]; !ok {
@@ -175,5 +175,6 @@ func writeEnvironment(w io.Writer) error {
 	if _, err := buffer.WriteTo(w); err != nil {
 		return err
 	}
+	
 	return nil
 }

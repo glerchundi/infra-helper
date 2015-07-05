@@ -59,24 +59,8 @@ func newEtcdClient(url string) (client.Client, error) {
 	return hc, nil
 }
 
-func newEtcdSyncedClient(url string) (client.Client, error) {
-	hc, err := newEtcdClient(url)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), client.DefaultRequestTimeout)
-	err = hc.Sync(ctx)
-	cancel()
-	if err != nil {
-		return nil, err
-	}
-
-	return hc, nil
-}
-
 func newEtcdMembersAPI(url string) (client.MembersAPI, error) {
-	hc, err := newEtcdSyncedClient(url)
+	hc, err := newEtcdClient(url)
 	if err != nil {
 		return nil, err
 	}
