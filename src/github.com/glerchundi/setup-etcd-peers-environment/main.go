@@ -161,7 +161,7 @@ func writeEnvironment(w io.Writer) error {
 		instancePeerURL := util.EtcdPeerURLFromIP(instanceIp)
 		log.Printf("adding etcd member: %s...", instancePeerURL)
 		member, err := util.EtcdAddMember(goodEtcdClientURL, instancePeerURL)
-		if member != nil {
+		if member == nil {
 			return err
 		}
 		log.Printf("done\n")
