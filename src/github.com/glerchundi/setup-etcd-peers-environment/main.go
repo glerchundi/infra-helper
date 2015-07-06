@@ -50,20 +50,16 @@ func mainAction(c *cli.Context) {
 	}
 
 	isClosed := false
+	defer func() { if !isClosed { tempFile.Close() } }()
 
-	defer func() {
-		if !isClosed {
-			tempFile.Close()
-		}
-	}()
 	if err := writeEnvironment(tempFile); err != nil {
 		log.Fatal(err)
 	}
 
 	if err := tempFile.Close(); err != nil {
-		return err
+		log.Fatal(err)
 	}
-	
+
 	isClosed = true
 
 	if err := os.Rename(tempFilePath, environmentFilePath); err != nil {
