@@ -23,7 +23,7 @@ import (
 func main() {
 	app := cli.NewApp()
 	app.Name = "setup-etcd-peers-environment"
-	app.Version = "0.1.1"
+	app.Version = "0.1.3"
 	app.Usage = "manage etcd cluster peers based on AWS autoscaling groups"
 	app.Action = mainAction
 	app.Flags = []cli.Flag {
@@ -39,7 +39,7 @@ func main() {
 func mainAction(c *cli.Context) {
 	environmentFilePath := c.GlobalString("out")
 	if _, err := os.Stat(environmentFilePath); err == nil {
-		log.Printf("etcd-peers file %s already created, exiting.", environmentFilePath)
+		log.Printf("etcd-peers file %s already created, exiting.\n", environmentFilePath)
     	return
 	}
 
@@ -66,7 +66,7 @@ func mainAction(c *cli.Context) {
 		log.Fatal(err)
 	}
 
-	os.Exit(0)
+	return
 }
 
 func writeEnvironment(w io.Writer) error {
@@ -120,7 +120,7 @@ func writeEnvironment(w io.Writer) error {
 
 	// if i am not already listed as a member of the cluster assume that this is a new cluster
 	if etcdMembers != nil && !isMember {
-		log.Print("joining an existing cluster, using this client url: ", goodEtcdClientURL)
+		log.Printf("joining to an existing cluster, using this client url: %s\n", goodEtcdClientURL)
 		initialClusterState = "existing"
 
 		//
@@ -145,11 +145,12 @@ func writeEnvironment(w io.Writer) error {
 			}
 
 			if _, ok := clusterMembersByIp[peerHost]; !ok {
-				log.Print("removing etcd member ", etcdMember.ID)
+				log.Printf("removing etcd member: %s...", etcdMember.ID)
 				err = util.EtcdRemoveMember(goodEtcdClientURL, etcdMember.ID)
 				if err != nil {
 					return err
 				}
+				log.Printf("done\n")
 			}
 		}
 
@@ -158,13 +159,14 @@ func writeEnvironment(w io.Writer) error {
 		//
 
 		instancePeerURL := util.EtcdPeerURLFromIP(instanceIp)
-		log.Print("adding etcd member ", instancePeerURL)
+		log.Printf("adding etcd member: %s...", instancePeerURL)
 		member, err := util.EtcdAddMember(goodEtcdClientURL, instancePeerURL)
 		if member != nil {
 			return err
 		}
+		log.Printf("done\n")
 	} else {
-		log.Print("creating new cluster")
+		log.Printf("creating new cluster\n")
 		initialClusterState = "new"
 	}
 
@@ -175,6 +177,9 @@ func writeEnvironment(w io.Writer) error {
 	}
 	initialCluster = strings.Join(kvs, ",")
 
+	// indicate it's going to write envvars
+	log.Printf("writing environment variables...")
+
 	// create environment variables
 	buffer.WriteString(fmt.Sprintf("ETCD_NAME=%s\n", instanceId))
 	buffer.WriteString(fmt.Sprintf("ETCD_INITIAL_CLUSTER_STATE=%s\n", initialClusterState))
@@ -183,6 +188,9 @@ func writeEnvironment(w io.Writer) error {
 	if _, err := buffer.WriteTo(w); err != nil {
 		return err
 	}
-	
+
+	// write done
+	log.Printf("done\n")
+
 	return nil
 }
