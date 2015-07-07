@@ -1,3 +1,5 @@
+Based on: [etcd Clustering in AWS - Configuring a robust etcd cluster in an AWS Auto Scaling Group](http://engineering.monsanto.com/2015/06/12/etcd-clustering/) by [T.J. Corrigan](https://github.com/tj-corrigan)
+
 # setup-etcd-peers-environment
 Create an environment file with etcd peers based on cloud providers auto scaling facilities.
 
