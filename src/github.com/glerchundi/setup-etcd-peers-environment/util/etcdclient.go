@@ -89,6 +89,34 @@ func EtcdListMembers(url string) (members []client.Member, err error) {
 	return
 }
 
+func EtcdAddMember(url string, peerURL string) (member *client.Member, err error) {
+	mAPI, err := newEtcdMembersAPI(url)
+	if err != nil {
+		return nil, err
+	}
+
+	// Actually attempt to remove the member.
+	ctx, cancel := context.WithTimeout(context.Background(), client.DefaultRequestTimeout)
+	member, err = mAPI.Add(ctx, peerURL)
+	cancel()
+
+	return
+}
+
+func EtcdRemoveMember(url, removalID string) (err error) {
+	mAPI, err := newEtcdMembersAPI(url)
+	if err != nil {
+		return err
+	}
+
+	// Actually attempt to remove the member.
+	ctx, cancel := context.WithTimeout(context.Background(), client.DefaultRequestTimeout)
+	err = mAPI.Remove(ctx, removalID)
+	cancel()
+
+	return
+}
+
 // because API doesn't permit adding 'name' as well as 'clientURLs' we use it directly bypassing
 // go library.
 
@@ -134,32 +162,4 @@ func (a *membersAPIActionAdd) HTTPRequest(ep url.URL) *http.Request {
 	req, _ := http.NewRequest("POST", u.String(), bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	return req
-}
-
-func EtcdAddMember(url string, peerURL string) (member *client.Member, err error) {
-	mAPI, err := newEtcdMembersAPI(url)
-	if err != nil {
-		return nil, err
-	}
-
-	// Actually attempt to remove the member.
-	ctx, cancel := context.WithTimeout(context.Background(), client.DefaultRequestTimeout)
-	member, err = mAPI.Add(ctx, peerURL)
-	cancel()
-
-	return
-}
-
-func EtcdRemoveMember(url, removalID string) (err error) {
-	mAPI, err := newEtcdMembersAPI(url)
-	if err != nil {
-		return err
-	}
-
-	// Actually attempt to remove the member.
-	ctx, cancel := context.WithTimeout(context.Background(), client.DefaultRequestTimeout)
-	err = mAPI.Remove(ctx, removalID)
-	cancel()
-
-	return
 }

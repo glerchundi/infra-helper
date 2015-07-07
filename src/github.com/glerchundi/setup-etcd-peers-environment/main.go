@@ -23,7 +23,7 @@ import (
 func main() {
 	app := cli.NewApp()
 	app.Name = "setup-etcd-peers-environment"
-	app.Version = "0.1.3"
+	app.Version = "0.1.4"
 	app.Usage = "manage etcd cluster peers based on AWS autoscaling groups"
 	app.Action = mainAction
 	app.Flags = []cli.Flag {
@@ -121,7 +121,6 @@ func writeEnvironment(w io.Writer) error {
 	// if i am not already listed as a member of the cluster assume that this is a new cluster
 	if etcdMembers != nil && !isMember {
 		log.Printf("joining to an existing cluster, using this client url: %s\n", goodEtcdClientURL)
-		initialClusterState = "existing"
 
 		//
 		// detect and remove bad peers
@@ -155,6 +154,28 @@ func writeEnvironment(w io.Writer) error {
 		}
 
 		//
+		// list current etcd members (after removing spurious ones)
+		//
+
+		etcdMembers, err = util.EtcdListMembers(goodEtcdClientURL)
+		if err != nil {
+			return err
+		}
+
+		kvs := make([]string, 0)
+		for _, etcdMember := range etcdMembers {
+			// ignore unstarted peers
+			if len(etcdMember.Name) == 0 {
+				continue
+			}
+			kvs = append(kvs, fmt.Sprintf("%s=%s", etcdMember.Name, etcdMember.PeerURLs[0]))
+		}
+		kvs = append(kvs, fmt.Sprintf("%s=%s", instanceId, util.EtcdPeerURLFromIP(instanceIp)))
+
+		initialClusterState = "existing"
+		initialCluster = strings.Join(kvs, ",")
+
+		//
 		// join an existing cluster
 		//
 
@@ -167,15 +188,16 @@ func writeEnvironment(w io.Writer) error {
 		log.Printf("done\n")
 	} else {
 		log.Printf("creating new cluster\n")
-		initialClusterState = "new"
-	}
 
-	// initial cluster
-	kvs := make([]string, 0)
-	for memberName, memberIp := range clusterMembersByName {
-		kvs = append(kvs, fmt.Sprintf("%s=%s", memberName, util.EtcdPeerURLFromIP(memberIp)))
+		// initial cluster
+		kvs := make([]string, 0)
+		for memberName, memberIp := range clusterMembersByName {
+			kvs = append(kvs, fmt.Sprintf("%s=%s", memberName, util.EtcdPeerURLFromIP(memberIp)))
+		}
+
+		initialClusterState = "new"
+		initialCluster = strings.Join(kvs, ",")
 	}
-	initialCluster = strings.Join(kvs, ",")
 
 	// indicate it's going to write envvars
 	log.Printf("writing environment variables...")
