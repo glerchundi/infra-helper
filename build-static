@@ -4,12 +4,12 @@ pushd `dirname $0` > /dev/null
 ROOTPATH=`pwd -P`
 popd > /dev/null
 
-NAME=setup-etcd-peers-environment
+NAME=infra-helper
 VERSION=0.1.4
 PREFIX=${NAME}-${VERSION}
 
 mkdir -p $ROOTPATH/bin
-cd $ROOTPATH/src/github.com/glerchundi/setup-etcd-peers-environment
+cd $ROOTPATH/src/github.com/glerchundi/infra-helper
 
 GOPATH=$ROOTPATH/vendor:$ROOTPATH \
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 \

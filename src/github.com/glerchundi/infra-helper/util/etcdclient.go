@@ -17,13 +17,9 @@
 package util
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
-	"path"
 
 	"github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/pkg/transport"
@@ -115,51 +111,4 @@ func EtcdRemoveMember(url, removalID string) (err error) {
 	cancel()
 
 	return
-}
-
-// because API doesn't permit adding 'name' as well as 'clientURLs' we use it directly bypassing
-// go library.
-
-// v2MembersURL add the necessary path to the provided endpoint
-// to route requests to the default v2 members API.
-func v2MembersURL(ep url.URL) *url.URL {
-	ep.Path = path.Join(ep.Path, "/v2/members")
-	return &ep
-}
-
-func assertStatusCode(got int, want ...int) (err error) {
-	for _, w := range want {
-		if w == got {
-			return nil
-		}
-	}
-	return fmt.Errorf("unexpected status code %d", got)
-}
-
-type membersAPIActionAdd struct {
-	Name string
-	PeerURL string
-	ClientURL string
-}
-
-func (m *membersAPIActionAdd) MarshalJSON() ([]byte, error) {
-	s := struct {
-		Name string `json:"name"`
-		PeerURLs []string `json:"peerURLs"`
-		ClientURLs []string `json:"clientURLs"`
-	}{
-		Name: m.Name,
-		PeerURLs: []string{m.PeerURL},
-		ClientURLs: []string{m.ClientURL},
-	}
-
-	return json.Marshal(&s)
-}
-
-func (a *membersAPIActionAdd) HTTPRequest(ep url.URL) *http.Request {
-	u := v2MembersURL(ep)
-	b, _ := json.Marshal(a)
-	req, _ := http.NewRequest("POST", u.String(), bytes.NewReader(b))
-	req.Header.Set("Content-Type", "application/json")
-	return req
 }

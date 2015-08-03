@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/glerchundi/setup-etcd-peers-environment/util"
+	"github.com/glerchundi/infra-helper/util"
 )
 
 type AwsMember struct {
@@ -25,11 +25,11 @@ func (awsMember *AwsMember) GetIPAddress() string {
 	return awsMember.ipAddress
 }
 
-type Aws struct {
-}
-
 func New() *Aws {
 	return &Aws{}
+}
+
+type Aws struct {
 }
 
 func (aws *Aws) GetInstanceId() (string, error) {
@@ -53,6 +53,23 @@ func (aws *Aws) GetInstancePrivateAddress() (string, error) {
 }
 
 func (aws *Aws) GetClusterMembers() (map[string]string, error) {
+	return GetClusterMembersByFunc(func(region string)(*autoscaling.Group, error) {
+		// Instance Id
+		instanceId, err := aws.GetInstanceId()
+		if err != nil {
+			return nil, err
+		}
+		return findAutoscalingGroupInstanceIdBelongs(instanceId, region)
+	})
+}
+
+func (aws *Aws) GetClusterMembersByName(name string) (map[string]string, error) {
+	return GetClusterMembersByFunc(func(region string)(*autoscaling.Group, error) {
+		return findAutoscalingGroupByName(name, region)
+	})
+}
+
+func GetClusterMembersByFunc(findAutoscalingGroup func(string)(*autoscaling.Group, error)) (map[string]string, error) {
 	// Availability Zone
 	availabilityZone, err := util.HttpGet("http://169.254.169.254/latest/meta-data/placement/availability-zone")
 	if err != nil {
@@ -62,14 +79,8 @@ func (aws *Aws) GetClusterMembers() (map[string]string, error) {
 	// Region
 	region := availabilityZone[:len(availabilityZone)-1]
 
-	// Instance Id
-	instanceId, err := aws.GetInstanceId()
-	if err != nil {
-		return nil, err
-	}
-
 	// Find which is the autoscaling group
-	autoscalingGroup, err := findAutoscalingGroup(instanceId, region)
+	autoscalingGroup, err := findAutoscalingGroup(region)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +100,24 @@ func (aws *Aws) GetClusterMembers() (map[string]string, error) {
 	return privateAddresses, nil
 }
 
-func findAutoscalingGroup(instanceId, region string) (*autoscaling.Group, error) {
+func findAutoscalingGroupInstanceIdBelongs(instanceId, region string) (*autoscaling.Group, error) {
+	return findAutoscalingGroupByFunc(region, func(asg *autoscaling.Group)bool {
+		for _, instance := range asg.Instances {
+			if *(instance.InstanceID) == instanceId {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+func findAutoscalingGroupByName(name, region string) (*autoscaling.Group, error) {
+	return findAutoscalingGroupByFunc(region, func(asg *autoscaling.Group)bool {
+		return *asg.AutoScalingGroupName == name
+	})
+}
+
+func findAutoscalingGroupByFunc(region string, predicate func(*autoscaling.Group)bool) (*autoscaling.Group, error) {
 	var autoscalingGroup *autoscaling.Group
 
 	svc := autoscaling.New(&aws.Config{Region: region})
@@ -98,13 +126,10 @@ func findAutoscalingGroup(instanceId, region string) (*autoscaling.Group, error)
 		return nil, err
 	}
 
-	L:
 	for _, asg := range out.AutoScalingGroups {
-		for _, instance := range asg.Instances {
-			if *(instance.InstanceID) == instanceId {
-				autoscalingGroup = asg
-				break L
-			}
+		if predicate(asg) {
+			autoscalingGroup = asg
+			break
 		}
 	}
 

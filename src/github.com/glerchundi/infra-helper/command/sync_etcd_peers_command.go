@@ -1,7 +1,4 @@
-// Copyright (c) 2015 Gorka Lerchundi Osa. All rights reserved.
-// Use of this source code is governed by the Apache License, Version 2.0
-// that can be found in the LICENSE file.
-package main
+package command
 
 import (
 	"bytes"
@@ -15,32 +12,31 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/coreos/etcd/client"
-	"github.com/glerchundi/setup-etcd-peers-environment/providers"
-	"github.com/glerchundi/setup-etcd-peers-environment/providers/aws"
-	"github.com/glerchundi/setup-etcd-peers-environment/util"
+	"github.com/glerchundi/infra-helper/providers"
+	"github.com/glerchundi/infra-helper/providers/aws"
+	"github.com/glerchundi/infra-helper/util"
 )
 
-func main() {
-	app := cli.NewApp()
-	app.Name = "setup-etcd-peers-environment"
-	app.Version = "0.1.4"
-	app.Usage = "manage etcd cluster peers based on AWS autoscaling groups"
-	app.Action = mainAction
-	app.Flags = []cli.Flag {
-		cli.StringFlag{
-			Name: "out, o",
-			Value: "/etc/sysconfig/etcd-peers",
-			Usage: "etcd peers environment config file destination",
+func NewSyncEtcdPeersCommand() cli.Command {
+	return cli.Command{
+		Name:  "sync-etcd-peers",
+		Usage: `syncs "etcd" cluster (adds/removes members based on 'autoscale' information)`,
+		Flags: []cli.Flag {
+			cli.StringFlag{
+				Name: "out, o",
+				Value: "/etc/sysconfig/etcd-peers",
+				Usage: "etcd peers environment file destination",
+			},
 		},
+		Action: handleSyncEtcdPeers,
 	}
-	app.RunAndExitOnError()
 }
 
-func mainAction(c *cli.Context) {
+func handleSyncEtcdPeers(c *cli.Context) {
 	environmentFilePath := c.GlobalString("out")
 	if _, err := os.Stat(environmentFilePath); err == nil {
 		log.Printf("etcd-peers file %s already created, exiting.\n", environmentFilePath)
-    	return
+		return
 	}
 
 	tempFilePath := environmentFilePath + ".tmp"
@@ -107,7 +103,7 @@ func writeEnvironment(w io.Writer) error {
 
 	// etcd parameters
 	var initialClusterState string
-    var initialCluster string
+	var initialCluster string
 
 	// check if instanceId is already member of cluster
 	var isMember bool = false

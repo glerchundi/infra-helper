@@ -3,13 +3,9 @@
 // that can be found in the LICENSE file.
 package providers
 
-type ClusterMember interface {
-	GetName() string
-	GetIPAddress() string
-}
-
 type Provider interface {
 	GetInstanceId() (string, error)
 	GetInstancePrivateAddress() (string, error)
 	GetClusterMembers() (map[string]string, error)
+	GetClusterMembersByName(name string) (map[string]string, error)
 }
