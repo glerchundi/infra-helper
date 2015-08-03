@@ -5,7 +5,7 @@ ROOTPATH=`pwd -P`
 popd > /dev/null
 
 NAME=infra-helper
-VERSION=0.1.4
+VERSION=0.1.0
 PREFIX=${NAME}-${VERSION}
 
 mkdir -p $ROOTPATH/bin

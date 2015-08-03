@@ -1,37 +1,44 @@
 Based on: [etcd Clustering in AWS - Configuring a robust etcd cluster in an AWS Auto Scaling Group](http://engineering.monsanto.com/2015/06/12/etcd-clustering/) by [T.J. Corrigan](https://github.com/tj-corrigan)
 
-# setup-etcd-peers-environment
+# infra-helper
 Create an environment file with etcd peers based on cloud providers auto scaling facilities.
 
 `cloud-config.yml`
 ```
 #cloud-config
 coreos:
+
   update:
     group: stable
     reboot-strategy: off
+
   etcd2:
     data-dir: /var/lib/etcd2
     advertise-client-urls: http://$private_ipv4:2379
     initial-advertise-peer-urls: http://$private_ipv4:2380
     listen-client-urls: http://0.0.0.0:2379
     listen-peer-urls: http://$private_ipv4:2380
+
   units:
+
     - name: etcd-peers.service
       command: start
       content: |
         [Unit]
-        Description=Setup etcd Peers Environment
-        Documentation=https://github.com/glerchundi/setup-etcd-peers-environment
+        Description=Syncs etcd cluster and deploys a cluster config
+        Documentation=https://github.com/glerchundi/infra-helper
         Requires=network-online.target
         After=network-online.target
         [Service]
+        Environment=VER=0.1.0
+        ExecStartPre=-/usr/bin/mkdir -p /opt/bin
+        ExecStartPre=/usr/bin/curl -L -o /opt/bin/infra-helper -z /opt/bin/infra-helper https://github.com/glerchundi/infra-helper/releases/download/v$VER/infra-helper-$VER-linux-amd64
+        ExecStartPre=/usr/bin/chmod 0755 /opt/bin/infra-helper
+        ExecStart=/opt/bin/infra-helper sync-etcd-peers \
+        --out /etc/infra-etcd-initial-cluster.conf
         Restart=on-failure
         RestartSec=10
-        ExecStartPre=-/usr/bin/mkdir -p /opt/bin /etc/sysconfig
-        ExecStartPre=/usr/bin/curl -L -o /opt/bin/setup-etcd-peers-environment -z /opt/bin/setup-etcd-peers-environment https://github.com/glerchundi/setup-etcd-peers-environment/releases/download/v0.1.4/setup-etcd-peers-environment
-        ExecStartPre=/usr/bin/chmod +x /opt/bin/setup-etcd-peers-environment
-        ExecStart=/opt/bin/setup-etcd-peers-environment -o /etc/sysconfig/etcd-peers
+
     - name: etcd2.service
       command: start
       drop-ins:
@@ -41,8 +48,8 @@ coreos:
             Requires=etcd-peers.service
             After=etcd-peers.service
             [Service]
-            # Load the other hosts in the etcd leader autoscaling group from file
-            EnvironmentFile=/etc/sysconfig/etcd-peers
+            EnvironmentFile=/etc/infra-etcd-initial-cluster.conf
+
     - name: fleet.service
       command: start
 ```
