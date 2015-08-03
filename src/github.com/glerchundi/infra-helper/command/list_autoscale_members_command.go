@@ -73,18 +73,13 @@ func handleListAutoscaleMembers(c *cli.Context) {
 	var provider providers.Provider = aws.New()
 
     // retrieve cluster members
-	var clusterMembersByName map[string]string = map[string]string{
-		"H":  "Hydrogen",
-		"He": "Helium",
-		"Li": "Lithium",
-	}
-
+	var clusterMembersByName map[string]string = nil
 	if name == "" {
 		clusterMembersByName, err = provider.GetClusterMembers()
 		if err != nil {
 			log.Fatal(err)
 		}
-	} else if false {
+	} else {
 		clusterMembersByName, err = provider.GetClusterMembersByName(name)
 		if err != nil {
 			log.Fatal(err)
