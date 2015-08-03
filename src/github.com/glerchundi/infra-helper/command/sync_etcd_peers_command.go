@@ -33,7 +33,7 @@ func NewSyncEtcdPeersCommand() cli.Command {
 }
 
 func handleSyncEtcdPeers(c *cli.Context) {
-	environmentFilePath := c.GlobalString("out")
+	environmentFilePath := c.String("out")
 	if _, err := os.Stat(environmentFilePath); err == nil {
 		log.Printf("etcd-peers file %s already created, exiting.\n", environmentFilePath)
 		return
