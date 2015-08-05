@@ -11,7 +11,7 @@ import (
 func main() {
 	app := cli.NewApp()
 	app.Name = "infra-helper"
-	app.Version = "0.1.0"
+	app.Version = "0.1.1"
 	app.Usage = "manage etcd cluster based on AWS autoscaling groups"
 	app.Commands = []cli.Command{
 		command.NewSyncEtcdPeersCommand(),

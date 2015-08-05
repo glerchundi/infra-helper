@@ -17,6 +17,11 @@ import (
 	"github.com/glerchundi/infra-helper/providers/aws"
 )
 
+type NameAndAddress struct {
+	Name string
+    Address string
+}
+
 func NewListAutoscaleMembersCommand() cli.Command {
 	return cli.Command{
 		Name:  "list-autoscale-members",
@@ -26,22 +31,14 @@ func NewListAutoscaleMembersCommand() cli.Command {
 				Usage: "search by name",
 			},
 			cli.StringFlag{
-				Name: "prefix",
-				Usage: "prepends a static raw string",
-			},
-			cli.StringFlag{
-				Name: "suffix",
-				Usage: "appends a static raw string",
-			},
-			cli.StringFlag{
 				Name: "format, f",
-				Value: "{{.Name}}={{.Address}}",
+				Value: "{{range .}}{{.Name}}={{.Address}}\\n{{end}}",
 				Usage: "defines how to format members output",
 			},
 			cli.StringFlag{
-				Name: "join-separator, s",
-				Value: "\\n",
-				Usage: "which separator will be used to join members",
+				Name: "c, chomp",
+				Value: "",
+				Usage: "chomp an ending delimiter off template's output",
 			},
 			cli.StringFlag{
 				Name: "out, o",
@@ -54,22 +51,24 @@ func NewListAutoscaleMembersCommand() cli.Command {
 
 func handleListAutoscaleMembers(c *cli.Context) {
 	name := c.String("name")
-	prefix := c.String("prefix")
-	suffix := c.String("suffix")
-	formatTemplate := c.String("format")
-	joinSeparator := c.String("join-separator")
+	//prefix := c.String("prefix")
+	//suffix := c.String("suffix")
+	format := c.String("format")
+	chomp := c.String("chomp")
+	//joinSeparator := c.String("join-separator")
 	outputFilePath := c.String("out")
 
-	tmpl, err := template.New("format").Parse(formatTemplate)
+	// sanitize everything
+	format = sanitize(format)
+	chomp = sanitize(chomp)
+
+	// parse format as golang template
+	tmpl, err := template.New("format").Parse(format)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// sanitize join separator
-	joinSeparator = strings.Replace(joinSeparator, "\\n", "\n", -1)
-	joinSeparator = strings.Replace(joinSeparator, "\\r", "\r", -1)
-	joinSeparator = strings.Replace(joinSeparator, "\\t", "\t", -1)
-
+	// for now, just AWS provider
 	var provider providers.Provider = aws.New()
 
     // retrieve cluster members
@@ -95,37 +94,39 @@ func handleListAutoscaleMembers(c *cli.Context) {
 	// do string sorting
 	sort.Strings(sortedNames)
 
-	// loop over sorted name (which are the keys in the map)
-	data := ""
+	// create final sorted array of Name & Addresses
+	sortedNameAndAddresses := make([]NameAndAddress, 0)
 	for _, name := range sortedNames {
-		// template provisioning object
-		nameAndAddress := struct {
-			Name string
-			Address string
-		}{ name, clusterMembersByName[name] }
-
-		// execute template
-		line, err := executeTemplate(tmpl, nameAndAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// save current processed line
-		if data == "" {
-			data = fmt.Sprintf("%s", line)
-		} else {
-			data = fmt.Sprintf("%s%s%s", data, joinSeparator, line)
-		}
+		nameAndAddress := NameAndAddress{name, clusterMembersByName[name]}
+		sortedNameAndAddresses = append(sortedNameAndAddresses, nameAndAddress)
 	}
 
-	// prepend & append, prefix & suffix
-	data = fmt.Sprintf("%s%s%s", prefix, data, suffix)
+	// loop over sorted name (which are the keys in the map)
+	data, err := executeTemplate(tmpl, sortedNameAndAddresses)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// chomp if necessary
+	if chomp != "" {
+		if last := len(data) - 1; last >= 0 && strings.Contains(chomp, string([]rune(data)[last])) {
+			data = string([]rune(data)[:last])
+		}
+	}
 
 	if outputFilePath == "" {
 		printToStdout(data)
 	} else {
 		printToFile(outputFilePath, data)
 	}
+}
+
+func sanitize(in string) (out string) {
+	out = in
+	out = strings.Replace(out, "\\n", "\n", -1)
+	out = strings.Replace(out, "\\r", "\r", -1)
+	out = strings.Replace(out, "\\t", "\t", -1)
+	return
 }
 
 func getMd5(name string) (string, error) {
