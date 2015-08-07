@@ -3,6 +3,57 @@ Based on: [etcd Clustering in AWS - Configuring a robust etcd cluster in an AWS 
 # infra-helper
 Create an environment file with etcd peers based on cloud providers auto scaling facilities.
 
+Usage:
+```
+$> ./bin/infra-helper --help
+NAME:
+   infra-helper - manage etcd cluster based on AWS autoscaling groups
+
+USAGE:
+   infra-helper [global options] command [command options] [arguments...]
+   
+VERSION:
+   0.1.1
+   
+COMMANDS:
+   sync-etcd-peers    syncs "etcd" cluster (adds/removes members based on 'autoscale' information)
+   list-autoscale-members 
+   help, h      Shows a list of commands or help for one command
+   
+GLOBAL OPTIONS:
+   --help, -h   show help
+   --version, -v  print the version
+```
+
+Usage for **sync-etcd-peers**:
+```
+$> ./bin/infra-helper sync-etcd-peers --help
+NAME:
+   sync-etcd-peers - syncs "etcd" cluster (adds/removes members based on 'autoscale' information)
+
+USAGE:
+   command sync-etcd-peers [command options] [arguments...]
+
+OPTIONS:
+   --out, -o "/etc/sysconfig/etcd-peers"  etcd peers environment file destination
+```
+
+Usage for **list-autoscale-members**:
+```
+$> ./bin/infra-helper list-autoscale-members --help
+NAME:
+   list-autoscale-members - 
+
+USAGE:
+   command list-autoscale-members [command options] [arguments...]
+
+OPTIONS:
+   --name, -n               search by name
+   --format, -f "{{range .}}{{.Name}}={{.Address}}\n{{end}}"  defines how to format members output
+   -c, --chomp              chomp an ending delimiter off template's output
+   --out, -o 
+```
+
 `cloud-config.yml`
 ```
 #cloud-config
